@@ -24,7 +24,8 @@ let interactive = true;
 let pollingSeconds = 3;
 let refreshLogListSeconds = 600;
 let nextLogRefresh: moment.Moment;
-let latestCodeprofilerLogSent: LogFile;
+// let latestCodeprofilerLogSent: LogFile;  Removed by the New Relic Fork
+let latestCodeprofilerLogs = new Map<string, moment.Moment>();
 let envVarPrefix = "ENV_";
 
 let run = async function () {
@@ -89,31 +90,62 @@ let dontInteract = async function (profilename?: string): Promise<LogFile[]> {
   }
 
   nextLogRefresh = moment().add(refreshLogListSeconds, 's');
-  let fileobjs = await getThatLogList(profile);
+  //let fileobjs = await getThatLogList(profile);   Removed by the New Relic Fork
   let logx: LogFile[] = [];
-  if (profile.log_types && profile.log_types.length > 0) {
-    for (let thisfile of fileobjs) {
-      let logname = thisfile.log.substr(0, thisfile.log.indexOf('-'));
-      if (profile.log_types.indexOf(logname) != -1) {
-        logx.push(thisfile);
-      }
+  // Removed by the New Relic Fork
+  // if (profile.log_types && profile.log_types.length > 0) {
+  //   for (let thisfile of fileobjs) {
+  //     let logname = thisfile.log.substr(0, thisfile.log.indexOf('-'));
+  //     if (profile.log_types.indexOf(logname) != -1) {
+  //       logx.push(thisfile);
+  //     }
+  let logfileobjs = await getThatLogList(profile);
+  let logfilenames: string[] = getFilenames(logfileobjs);
+
+  for(let logfilename of logfilenames) {
+    if(!profile.log_types || (profile.log_types.length > 0 && profile.log_types.indexOf(logfilename.split('-')[0]) != -1)) {
+        logx.push(getLatestFile(logfileobjs, logfilename));
     }
-  } else {
-    logx = fileobjs;
   }
 
   if (!profile.log_types || profile.log_types.indexOf('codeprofiler') > 0) {
     let cpfileobjs = await getThatLogList(profile, '.csv');
     if (cpfileobjs && cpfileobjs.length > 0) {
-      let newestcpfile = cpfileobjs.reduce((newest, compare) => newest.date.isAfter(compare.date) ? newest : compare);
-      if (!latestCodeprofilerLogSent || newestcpfile.date.isAfter(latestCodeprofilerLogSent.date)) {
-        logx.push(newestcpfile);
-        latestCodeprofilerLogSent = newestcpfile;
-      }
+      // Removed by the New Relic Fork
+      // let newestcpfile = cpfileobjs.reduce((newest, compare) => newest.date.isAfter(compare.date) ? newest : compare);
+      // if (!latestCodeprofilerLogSent || newestcpfile.date.isAfter(latestCodeprofilerLogSent.date)) {
+      //   logx.push(newestcpfile);
+      //   latestCodeprofilerLogSent = newestcpfile;
+      // }
+      let cpfilenames = getFilenames(cpfileobjs);
+      for(let cpfilename of cpfilenames) {
+        let newestcpfile = getLatestFile(cpfileobjs, cpfilename)
+        if(!latestCodeprofilerLogs.has(cpfilename) || newestcpfile.date.isAfter(latestCodeprofilerLogs.get(cpfilename))) {
+          logx.push(newestcpfile);
+          latestCodeprofilerLogs.set(cpfilename, newestcpfile.date);
+        }
+      } 
     }
   }
-
+  logger.log(logger.debug, `Using this log list: ${JSON.stringify(logx.map(logfile => logfile.log), null, 2)}`, debug);
   return logx;
+}
+
+// New Function to get Filenames
+let getFilenames = function(logobjs: LogFile[]): string[] {
+  let outfilenames: string[] = [];
+  for (let logobj of logobjs) {
+    var logsegment = logobj.log.split('.')[0];
+    if(outfilenames.indexOf(logsegment) == -1) {
+      outfilenames.push(logsegment);
+    }
+  }
+  return outfilenames;
+}
+
+let getLatestFile = function(logobjs: LogFile[], logstr: string): LogFile {
+  let theselogfiles = logobjs.filter(logfile => logfile.log.indexOf(logstr) > -1);
+  return theselogfiles.reduce((newest, compare) => newest.date.isAfter(compare.date) ? newest : compare);
 }
 
 let interact = async function (profilename?: string): Promise<LogFile[]> {
@@ -261,9 +293,16 @@ let pollLogs = async function (fileobjs: LogFile[], doRollover = false) {
     }
 
     if (fluent) {
-      fluent.output(profile.hostname,
-        await logparser.process(fileobjs.map((logobj) => logfetcher.fetchLogContent(profile, logobj))),
-        false, fileobjs[0].debug);
+      // Removed by the New Relic Fork
+      // fluent.output(profile.hostname,
+      //   await logparser.process(fileobjs.map((logobj) => logfetcher.fetchLogContent(profile, logobj))),
+      //   false, fileobjs[0].debug);
+      for(let logobj of fileobjs) {
+        var logobjarr = [];
+        logobjarr.push(logfetcher.fetchLogContent(profile, logobj))
+        fluent.output(profile.hostname, await logparser.process(logobjarr),
+        false, logobj.debug);
+      }
     } else {
       let parsed = logemitter.sort(
         await logparser.process(fileobjs.map((logobj) => logfetcher.fetchLogContent(profile, logobj)))
@@ -271,12 +310,16 @@ let pollLogs = async function (fileobjs: LogFile[], doRollover = false) {
       logemitter.output(parsed, false, fileobjs[0].debug);
     }
 
+    // Removed by the New Relic Fork
     // Codeprofiler files should only be consumed once
-    let cp = fileobjs.findIndex(logobj => logobj.log.endsWith("csv"));
-    if (cp > -1) {
-      logger.log(logger.debug, `Removed codeprofiler log ${fileobjs[cp].log} from list.`, debug);
-      fileobjs.splice(cp, 1);
-    }
+    // let cp = fileobjs.findIndex(logobj => logobj.log.endsWith("csv"));
+    // if (cp > -1) {
+    //   logger.log(logger.debug, `Removed codeprofiler log ${fileobjs[cp].log} from list.`, debug);
+    //   fileobjs.splice(cp, 1);
+    // }
+    // The above was removed by the newrelic-fork and replaced with:
+    logger.log(logger.debug, `Removing code provider log from list: ${JSON.stringify(fileobjs.filter(logobj => logobj.log.endsWith("csv")), null, 2)}`, debug);
+    fileobjs = fileobjs.filter(logobj => !logobj.log.endsWith("csv"));
 
   } else {
     if (interactive) {
