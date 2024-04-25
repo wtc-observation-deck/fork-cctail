@@ -110,19 +110,18 @@ let dontInteract = async function (profilename?: string): Promise<LogFile[]> {
 
   for(let logfilename of logfilenames) {
     if(!profile.log_types || (profile.log_types.length > 0 && profile.log_types.indexOf(logfilename.split('-')[0]) != -1)) {
-        logger.log(logger.debug, 'Including log as it matched our filter.', debug, {
-            log_file: logfileobjs[0].log,
-            log_size: logfileobjs[0].size_string,
-            log_date: logfileobjs[0].date.toString(),
-            log_included: true
-          }
-        )
-        logx.push(getLatestFile(logfileobjs, logfilename));
+        const file = getLatestFile(logfileobjs, logfilename);
+        logger.log(logger.debug, `Including log as it matched our filter: ${file.log}.`, debug, {
+          log_file: file.log,
+          log_size: file.size_string,
+          log_date: file.date.toString(),
+          log_included: true
+        }
+      )
+        logx.push(file);
     } else if(!profile.log_types || (profile.log_types.length > 0 && !(profile.log_types.indexOf(logfilename.split('-')[0]) != -1))) {
-        logger.log(logger.debug, 'Skipping log as it did not match our filter.', debug, {
-          log_file: logfileobjs[0].log,
-          log_size: logfileobjs[0].size_string,
-          log_date: logfileobjs[0].date.toString(),
+        logger.log(logger.debug, `Skipping log as it did not match our filter: ${logfilename}`, debug, {
+          log_file: logfilename,
           log_included: false
         });      
     }
