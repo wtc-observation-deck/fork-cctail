@@ -2,7 +2,8 @@
 .history
 node_modules
 log.conf.js
-log.conf.json
+*log.conf.json
 package-lock.json
 dist/*
 sandbox.txt
+dist

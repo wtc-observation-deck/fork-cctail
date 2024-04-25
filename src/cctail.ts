@@ -102,9 +102,29 @@ let dontInteract = async function (profilename?: string): Promise<LogFile[]> {
   let logfileobjs = await getThatLogList(profile);
   let logfilenames: string[] = getFilenames(logfileobjs);
 
+  if (profile.log_types ) {
+    logger.log(logger.debug, "Log Filter is in effect.", debug, {
+      log_filter: profile.log_types.join(', ')
+    })
+  }
+
   for(let logfilename of logfilenames) {
     if(!profile.log_types || (profile.log_types.length > 0 && profile.log_types.indexOf(logfilename.split('-')[0]) != -1)) {
+        logger.log(logger.debug, 'Including log as it matched our filter.', debug, {
+            log_file: logfileobjs[0].log,
+            log_size: logfileobjs[0].size_string,
+            log_date: logfileobjs[0].date.toString(),
+            log_included: true
+          }
+        )
         logx.push(getLatestFile(logfileobjs, logfilename));
+    } else if(!profile.log_types || (profile.log_types.length > 0 && !(profile.log_types.indexOf(logfilename.split('-')[0]) != -1))) {
+        logger.log(logger.debug, 'Skipping log as it did not match our filter.', debug, {
+          log_file: logfileobjs[0].log,
+          log_size: logfileobjs[0].size_string,
+          log_date: logfileobjs[0].date.toString(),
+          log_included: false
+        });      
     }
   }
 
@@ -258,7 +278,11 @@ let getThatLogList = async function (profile: DwJson, filesuffix = ".log"): Prom
         date: moment.utc(match[3]),
         debug: debug
       });
-      logger.log(logger.debug, `Available Log: ${match[1]}`, debug);
+      logger.log(logger.debug, `Available Log: ${match[1]}`, debug, { 
+        log_file: match[1], 
+        log_size: match[2], 
+        log_date: moment.utc(match[3]).toString() 
+      });
     }
     match = regexp.exec(data);
   }
@@ -349,7 +373,18 @@ function replaceEnvPlaceholders(data: any) {
     } else if (typeof (value) === 'string' && value.startsWith(envVarPrefix)) {
       var checkForVar = value.replace(envVarPrefix, "");
       if (process.env.hasOwnProperty(checkForVar)) {
-        data[key] = process.env[checkForVar];
+        if (key === 'log_types') {
+          const logtypes = process.env[checkForVar];
+          if (logtypes) {
+              data[key] = logtypes.split(',').map(item => item.trim());
+          } else {
+              logger.log(logger.error, `No data found for environment variable: ${checkForVar}.  Reverting to all logs.`);
+              delete data[key];
+          }
+        } else {
+          // normal variable
+          data[key] = process.env[checkForVar];
+        }
       }
     }
   });
@@ -385,6 +420,7 @@ function readLogConf() {
     } else {
       logger.log(logger.info, "Console output is enabled.");
     }
+
   } catch (err) {
     logger.log(logger.error, `\nMissing or invalid log.conf.json.\nError message: ${err}\n`);
     process.exit(-1);

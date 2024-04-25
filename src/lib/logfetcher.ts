@@ -185,19 +185,32 @@ const logfetcher = {
   fetchFileSize: async function(profile: DwJson, logobj: LogFile): Promise<number> {
     let size = this.convertFileSize(logobj.size_string, logobj.debug);
     if (size > 0) {
-      logger.log(logger.debug, `Using approximate file size of ${logobj.log} from webdav index: ${size}`, logobj.debug);
+      logger.log(logger.debug, `Using approximate file size of ${logobj.log} from webdav index: ${size}`, logobj.debug, {
+        log_file: logobj.log,
+        log_size: logobj.size_string,
+        log_index: size,
+      });
     } else {
       try {
         logger.log(logger.debug, `Fetching size for ${logobj.log} using HEAD request`, logobj.debug);
         let res = await this.makeRequest(profile, 'HEAD', logobj.log, null, logobj.debug);
         if (res.headers['content-length']) {
           size = parseInt(res.headers['content-length'], 10);
-          logger.log(logger.debug, `Fetched size for ${logobj.log}: size ${size}`, logobj.debug);
+          logger.log(logger.debug, `Fetched size for ${logobj.log}: size ${size}`, logobj.debug, {
+            log_file: logobj.log,
+            log_length: size
+          });
         } else {
-          logger.log(logger.debug, `No content-length returned for ${logobj.log}`, logobj.debug);
+          logger.log(logger.debug, `No content-length returned for ${logobj.log}`, logobj.debug, {
+            log_file: logobj.log,
+            error_message: "No content-length returned"
+          });
         }
       } catch (err) {
-        logger.log(logger.warn, `Fetching file size of ${logobj.log} failed with error: ${err.message}`);
+        logger.log(logger.warn, `Fetching file size of ${logobj.log} failed with error: ${err.message}`, logobj.debug, {
+          log_file: logobj.log,
+          error_message: err.message
+        });
       }
     }
     return size
@@ -220,7 +233,10 @@ const logfetcher = {
 
       let headers = new Map([["Range", `bytes=${range}-`]]);
       let res = await this.makeRequest(profile, 'GET', logobj.log, headers, logobj.debug);
-      logger.log(logger.debug, `Fetching contents from ${logobj.log} retured status code ${res.status}`, logobj.debug);
+      logger.log(logger.debug, `Fetching contents from ${logobj.log} returned status code ${res.status}`, logobj.debug, {
+        log_file: logobj.log,
+        log_status: res.status
+      });
       if (res.status === 206) {
         if (logobj.size < 0) {
           logobj.size = res.data.length;
@@ -235,16 +251,25 @@ const logfetcher = {
       }
     } catch (err) {
       if (err.response) {
-        logger.log(logger.debug, `Fetching contents from ${logobj.log} returned status code ${err.response.status}`, logobj.debug);
+        logger.log(logger.debug, `Fetching contents from ${logobj.log} returned status code ${err.response.status}`, logobj.debug, {
+          log_file: logobj.log,
+          log_status: err.response.status,
+          error_message: "Invalid SFCC Response"
+        });
       }
       if (!err.response || err.response.status !== 416) {
         this.errorcount = this.errorcount + 1;
-        if (this.errorcount > 1) {
-          logger.log(logger.error, `Error fetching contents from ${logobj.log}: ${err.message} (error count ${this.errorcount})`);
-        } else {
-          // don't be too verbose, just retry if this was the first error
-          logger.log(logger.debug, `Error fetching contents from ${logobj.log}: ${err.message} (error count ${this.errorcount})`);
-        }
+        // if (this.errorcount > 1) {
+          logger.log(logger.error, `Error fetching contents from ${logobj.log}: ${err.message} (error count ${this.errorcount})`, logobj.debug, {
+            log_file: logobj.log,
+            log_status: err.response.status,
+            error_message: err.message,
+            error_count: this.errorcount
+          });
+        // } else {
+        //   // don't be too verbose, just retry if this was the first error
+        //   logger.log(logger.debug, `Error fetching contents from ${logobj.log}: ${err.message} (error count ${this.errorcount})`);
+        // }
       }
     }
     return [logobj, ''];

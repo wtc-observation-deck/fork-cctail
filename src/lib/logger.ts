@@ -30,12 +30,12 @@ const logger = {
     warn: yellow
   },
 
-  log: function (level: string, text: string, debug?: boolean) {
-    if (level !== this.debug) {
-      log(this.colorize(level, text));
-    } else if (debug) {
-      log(this.colorize(level, this.debugPrefix + text));
-    }
+  log: function (level: string, text: string, debug?: boolean, optional?: object) {
+    log({ 
+      level: level, 
+      message: text, 
+      ...optional 
+    });
   },
 
   colorize: function (level: string, text: string) {

@@ -1,41 +1,68 @@
 import fs from 'fs';
-import util from 'util';
-import path from 'path';
 import logparser from '../src/lib/logparser';
 import logemitter from '../src/lib/logemitter';
-
-const readFile = util.promisify(fs.readFile);
+import { LogFile } from '../src/lib/types';
+import moment from 'moment';
 
 let jobcontent:string;
-let files: Promise<string>[];
+let files: Promise<[LogFile, string]>[];
 
-beforeAll(() => {
-  jobcontent = fs.readFileSync('__tests__/logs/sample-jobs.log', 'UTF-8');
-  files = fs
-    .readdirSync('__tests__/logs').map(name => { return readFile(path.join('__tests__/logs', name), 'UTF-8') });
+beforeAll( () => {
+  files = fs.readdirSync('__tests__/logs').map(name => { 
+       
+      return new Promise( (resolve) => {
+
+        const logfile: LogFile = {
+          log: `__tests__/logs/${name}`,
+          date: moment(),
+          debug: true, 
+          size_string: "MB"
+        }
+  
+        const content = fs.readFileSync(logfile.log, { encoding: 'utf-8'});
+
+        return resolve([logfile, content]);
+      });
+    })
 });
 
 test('correct number of items when parsing a single file', () => {
-  let result = logparser.parseLog(fs.readFileSync('__tests__/logs/sample-warn.log', 'UTF-8'));
-  expect(result.length).toBe(5);
-});
+  const foo: LogFile = {
+    log: '__tests__/logs/sample-jobs.log',
+    date: moment(),
+    debug: true,
+    size_string: '3MB'
 
-test('correct number of items when parsing job log file without level', () => {
-  let result = logparser.parseLog(jobcontent);
-  expect(result.length).toBe(10);
+  }
+  let result = logparser.parseLog([foo,fs.readFileSync(foo.log, { encoding: 'utf-8'})]);
+   expect(result.length).toBe(10);
 });
-
 test('message content is right', () => {
-  let result = logparser.parseLog(fs.readFileSync('__tests__/logs/sample-warn.log', 'UTF-8'));
+  const foo: LogFile = {
+    log: '__tests__/logs/sample-warn.log',
+    date: moment(),
+    debug: true,
+    size_string: '3MB'
+
+  }
+  let result = logparser.parseLog([foo,fs.readFileSync(foo.log, { encoding: 'utf-8'})]);
+
   expect(result[0].message).toBe('first line of log with missing info');
   expect(result[1].message).toBe('PipelineCallServlet|1692371210|Adyen-Notify|PipelineCall|RrCsCHDvb2 custom []  multiline start\nmultiline second line\nmultiline third line');
   expect(result[2].message).toBe('PipelineCallServlet|1692371210|Adyen-Notify|PipelineCall|RrCsCHDvb2 custom []  .*#GET#TOP <-> Adyen-Notify#POST#TOP');
   expect(result[4].message).toBe('PipelineCallServlet|899141122|Adyen-Notify|PipelineCall|GUfhepk_2C custom []  .*#GET#TOP <-> Adyen-Notify#POST#TOP\nlast line');
 });
 
-
 test('logs are sorted', () => {
-  let result = logemitter.sort(logparser.parseLog(fs.readFileSync('__tests__/logs/sample-unsorted.log', 'UTF-8')));
+  const foo: LogFile = {
+    log: '__tests__/logs/sample-unsorted.log',
+    date: moment(),
+    debug: true,
+    size_string: '3MB'
+
+  }
+  let result = logemitter.sort(logparser.parseLog([foo,fs.readFileSync(foo.log, { encoding: 'utf-8'})]));
+  
   expect(result[0].message).toBe('one');
   expect(result[1].message).toBe('two');
   expect(result[2].message).toBe('three');
@@ -47,4 +74,3 @@ test('parse multiple files', async () => {
   let parsed = await logparser.process(files);
   expect(parsed.length).toBe(23);
 });
-

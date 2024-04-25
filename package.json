@@ -1,6 +1,6 @@
 {
   "name": "cctail",
-  "version": "1.6.0",
+  "version": "1.7.0",
   "description": "Salesforce Commerce Cloud logs remote tail",
   "keywords": [
     "Salesforce Commerce Cloud",
@@ -36,11 +36,11 @@
     "CHANGELOG.md"
   ],
   "engines": {
-    "npm": ">=7.0.0",
-    "node": ">=16.0.0"
+    "npm": ">=10.0.0",
+    "node": ">=18.0.0"
   },
   "dependencies": {
-    "axios": "0.27.2",
+    "axios": "1.6.8",
     "colorette": "2.0.19",
     "fluent-logger": "^3.4.1",
     "moment": "2.29.4",
@@ -68,6 +68,7 @@
   "jest": {
     "testPathIgnorePatterns": [
       "/node_modules/",
+      "dist",
       ".history/"
     ],
     "preset": "ts-jest"

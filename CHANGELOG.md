@@ -1,5 +1,11 @@
 ## Change Log
 
+### v1.7.0 (2024/04/25)
+
+- upgraded dependencies
+- added structured logging to allow New Relic to easier parse the logs.
+- support for log_files via environment variable (csv format string).
+
 ### v1.6.0 (2022/08/22)
 
 - upgrade dependencies - switch to node 16 by default
