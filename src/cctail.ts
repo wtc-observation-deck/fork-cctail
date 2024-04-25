@@ -104,7 +104,7 @@ let dontInteract = async function (profilename?: string): Promise<LogFile[]> {
 
   if (profile.log_types ) {
     logger.log(logger.debug, "Log Filter is in effect.", debug, {
-      log_filter: profile.log_types.join(', ')
+      log_filter: profile.log_types
     })
   }
 
@@ -372,17 +372,48 @@ function replaceEnvPlaceholders(data: any) {
     } else if (typeof (value) === 'string' && value.startsWith(envVarPrefix)) {
       var checkForVar = value.replace(envVarPrefix, "");
       if (process.env.hasOwnProperty(checkForVar)) {
-        if (key === 'log_types') {
-          const logtypes = process.env[checkForVar];
-          if (logtypes) {
-              data[key] = logtypes.split(',').map(item => item.trim());
-          } else {
-              logger.log(logger.error, `No data found for environment variable: ${checkForVar}.  Reverting to all logs.`);
-              delete data[key];
-          }
-        } else {
+        switch(key) {
+          case 'log_types':
+            const logtypes = process.env[checkForVar];
+            data[key] = logtypes.split(',').map(item => item.trim());                        
+            break;
+          case 'polling_interval':
+              const parsedInterval = Number(process.env[checkForVar]);
+              if (!isNaN(parsedInterval)) {
+                data[key] = parsedInterval;
+              } else {
+                logger.log(logger.error, `Invalid value for environment variable: ${checkForVar}.  Could not cast string to number.`);
+                data[key] = 60;
+              }            
+            break;
+          case 'refresh_loglist_interval':
+              const parsedLogListInterval = Number(process.env[checkForVar]);
+              if (!isNaN(parsedLogListInterval)) {
+                data[key] = parsedLogListInterval;
+              } else {
+                logger.log(logger.error, `Invalid value for environment variable: ${checkForVar}.  Could not cast string to number.`);
+                data[key] = 600;
+              }
+            break;
+          default:        
           // normal variable
           data[key] = process.env[checkForVar];
+        }
+      } else {
+        logger.log(logger.error, `No data found for environment variable: ${checkForVar}.`);
+        switch (key) {
+          case 'log_types':
+              logger.log(logger.error, `Reverting to all log files.`);
+              delete data[key];
+              break
+          case 'polling_interval':
+            logger.log(logger.error, `Reverting polling_interval to default of 60 seconds`);
+            data[key] = 60;
+            break;
+          case 'refresh_loglist_interval':
+            logger.log(logger.error, `Reverting refresh_loglist_interval to default of 600 seconds`);
+            data[key] = 600;
+            break;          
         }
       }
     }
