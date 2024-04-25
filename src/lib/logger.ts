@@ -31,11 +31,7 @@ const logger = {
   },
 
   log: function (level: string, text: string, debug?: boolean, optional?: object) {
-    log({ 
-      level: level, 
-      message: text, 
-      ...optional 
-    });
+    log(JSON.stringify({ level: level, message: text, ...optional }));
   },
 
   colorize: function (level: string, text: string) {
