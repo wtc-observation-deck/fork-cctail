@@ -28,7 +28,7 @@ class LogFluent implements FluentConfig {
 
   output(hostname: string, logs: LogLine[], printnots: boolean, debug: boolean) {
     logger.log(logger.debug, `Sending ${logs.length} new log records to FluentD this interval.`, debug, {
-      log_file: logs[0].logfile,
+      log_file: (logs && logs[0] && logs[0].logfile) ?? 'unknown',
       log_records: logs.length,
       hostname: hostname
     });
