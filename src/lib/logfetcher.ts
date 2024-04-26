@@ -257,19 +257,21 @@ const logfetcher = {
           error_message: "Invalid SFCC Response"
         });
       }
-      if (!err.response || err.response.status !== 416) {
+      if (!err.response || (err.response && err.response.status !== 416)) {
         this.errorcount = this.errorcount + 1;
-        // if (this.errorcount > 1) {
+
+          // Determine the log_status based on the state of err.response and err.response.status
+          let log_status = 'No Response'; // Default if err.response is not defined
+          if (err.response) {
+            log_status = err.response.status !== undefined ? err.response.status : 'No Status Code';
+          }
+
           logger.log(logger.error, `Error fetching contents from ${logobj.log}: ${err.message} (error count ${this.errorcount})`, logobj.debug, {
             log_file: logobj.log,
-            log_status: err.response.status,
+            log_status: log_status,
             error_message: err.message,
             error_count: this.errorcount
           });
-        // } else {
-        //   // don't be too verbose, just retry if this was the first error
-        //   logger.log(logger.debug, `Error fetching contents from ${logobj.log}: ${err.message} (error count ${this.errorcount})`);
-        // }
       }
     }
     return [logobj, ''];

@@ -31,7 +31,13 @@ const logger = {
   },
 
   log: function (level: string, text: string, debug?: boolean, optional?: object) {
-    log(JSON.stringify({ level: level, message: text, ...optional }));
+
+    const extraData = {
+      process: 'cctail',
+      ...optional
+    }
+
+    log(JSON.stringify({ level: level, message: text, ...extraData }));
   },
 
   colorize: function (level: string, text: string) {
